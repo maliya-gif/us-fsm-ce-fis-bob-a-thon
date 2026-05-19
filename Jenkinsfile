@@ -140,8 +140,47 @@ spec:
         }
 
         // ── Lab 1: PR / Git Diff Review ──────────────────────────
-        //    Add a stage here that runs Bob in a "senior developer"
-        //    mode against the git diff. See labs/LAB1_PR_REVIEW.md.
+        stage('PR Review') {
+            options {
+                timeout(time: 5, unit: 'MINUTES')
+            }
+            steps {
+                script {
+                    echo '════════════════════════════════════════════════════════'
+                    echo '  🤖 Bob PR Review Analysis'
+                    echo '════════════════════════════════════════════════════════'
+                    
+                    catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                        // Configure git safe.directory and compute PR diff
+                        sh '''
+                            git config --global --add safe.directory "$WORKSPACE"
+                            git diff origin/main...HEAD > git-diff.txt || : > git-diff.txt
+                        '''
+                        
+                        // Ask Bob to analyze the diff
+                        def analysis = askBob(
+                            "Read git-diff.txt and produce the senior-developer PR overview.",
+                            'pipeline-git-diff-overview'
+                        )
+                        
+                        // Display analysis in console
+                        echo analysis
+                        
+                        // Save for archiving
+                        writeFile file: 'bob-pr-review.md', text: analysis
+                    }
+                    
+                    echo '════════════════════════════════════════════════════════'
+                }
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'bob-pr-review.md',
+                                   allowEmptyArchive: true,
+                                   fingerprint: true
+                }
+            }
+        }
 
         // ── Lab 2: Unit Testing ──────────────────────────────────
         //    Add a mvn test stage + Bob test-failure analysis.
